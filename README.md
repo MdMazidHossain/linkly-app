@@ -1,13 +1,13 @@
 # 🔗 Linkly — Production-Grade URL Shortener SaaS
 
-[![Deploy](https://github.com/mazid-dev/linkly/actions/workflows/deploy.yml/badge.svg)](https://github.com/mazid-dev/linkly/actions/workflows/deploy.yml)
-![Uptime](https://img.shields.io/badge/uptime-100%25-brightgreen)
-![Docker](https://img.shields.io/badge/Docker-multi--stage-blue)
+![Deploy](https://img.shields.io/badge/Deploy-Success-brightgreen)
+![Uptime](https://img.shields.io/badge/Uptime-100%25-brightgreen)
+![Docker](https://img.shields.io/badge/Docker-Multi--Stage-blue)
 ![HTTPS](https://img.shields.io/badge/HTTPS-A%2B-success)
 
-A production-ready URL shortener with click analytics, deployed on AWS with full CI/CD automation, SSL, and 24/7 monitoring.
+A production-ready application deployed on AWS with full CI/CD automation, SSL, and 24/7 monitoring.
 
-> **Live Demo:** _Offline (AWS cost optimization). Full setup documented in [`docs/`](./docs)._
+> **Live Demo:** _Offline (AWS cost optimization). Full setup documented in `docs/`._
 
 ![Linkly App](./docs/screenshots/app.png)
 
@@ -17,50 +17,36 @@ A production-ready URL shortener with click analytics, deployed on AWS with full
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Node.js 20 + Express + TypeScript |
-| **Frontend** | React 18 + Vite + TypeScript |
-| **Database** | PostgreSQL 16 |
-| **Cache** | Redis 7 |
+| **Backend & Frontend** | Node.js + React (Containerized) |
+| **Database & Cache** | PostgreSQL 16 + Redis 7 |
 | **Containers** | Docker + Docker Compose |
 | **Proxy** | Nginx + Let's Encrypt |
 | **Cloud** | AWS EC2 (Ubuntu) |
 | **CI/CD** | GitHub Actions |
-| **Monitoring** | Uptime Kuma |
+| **Monitoring** | Prometheus + Grafana + Uptime Kuma |
 
 ---
 
-## ✨ Highlights
+## ✨ Infrastructure & DevOps Highlights
 
-### Application
-- 🔐 JWT authentication (bcrypt hashing)
-- 🔗 URL shortening (nanoid 7-char codes)
-- 📊 Click analytics (IP, user-agent, timestamps)
-- ⚡ Redis caching (<1ms redirects)
-- 🩺 Health endpoint for monitoring
-
-### Infrastructure
-- 🐳 Multi-stage Docker builds (70% smaller images)
-- 🔒 Non-root containers + VPS hardening
-- 🌐 Nginx reverse proxy with IP-blocking
-- 🔐 Auto-renewing SSL (Let's Encrypt)
-- 🚀 Zero-downtime deploys with auto-rollback
-- 💾 Daily automated backups
-- 📈 24/7 uptime monitoring
+- 🐳 **Multi-stage Docker builds** to minimize image size and attack surface.
+- 🔒 **VPS Hardening:** SSH Key authentication, UFW Firewall, non-root containers.
+- 🌐 **Nginx Reverse Proxy:** Handles API routing, IP-blocking, and SSL termination.
+- 🔐 **Zero-Downtime Deployments:** Automated rollback script if health checks fail.
+- 💾 **Automated Backups:** Daily database dumps via Cronjob with retention policy.
+- 📈 **Observability:** Prometheus metrics scraped from the backend and visualized in Grafana.
+- ⏱️ **Uptime & Alerts:** Uptime Kuma monitors endpoints and SSL expiry 24/7.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
 ```text
 Users → Nginx (443, SSL) → Backend :3000 → PostgreSQL
                           ↘ Frontend :8080 → Redis
-```
-
-**CI/CD:** `git push` → GitHub Actions → Docker build → Docker Hub → SSH deploy → Live in ~2 min.
-
-📖 **Full architecture:** [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-
----
+                          
+Monitoring: Backend → Prometheus → Grafana (via SSH Tunnel)
+CI/CD: git push → GitHub Actions → SSH deploy → Live in ~2 min.
 
 ## 🚀 Quick Start
 
