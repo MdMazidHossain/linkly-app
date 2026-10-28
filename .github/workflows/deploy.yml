@@ -43,8 +43,8 @@ jobs:
           context: ./frontend
           push: true
           build-args: |
-            VITE_API_URL=https://linkly.example.com/api
-            VITE_BASE_URL=https://linkly.example.com
+            VITE_API_URL=https://techlinkassist.work.gd/api
+            VITE_BASE_URL=https://techlinkassist.work.gd
           tags: |
             ${{ env.FRONTEND_IMAGE }}:latest
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
