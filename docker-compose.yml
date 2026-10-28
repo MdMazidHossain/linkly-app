@@ -13,7 +13,6 @@ services:
     restart: unless-stopped
     networks: [appnet]
 
-
   frontend:
     build:
       context: ./frontend
@@ -55,11 +54,32 @@ services:
     restart: unless-stopped
     networks: [appnet]
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    networks: [appnet]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on: [prometheus]
+    restart: unless-stopped
+    networks: [appnet]
+
 volumes:
   pgdata:
   redisdata:
+  prometheus_data:   
+  grafana_data:     
 
 networks:
   appnet:
     driver: bridge
-    
