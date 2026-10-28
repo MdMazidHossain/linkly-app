@@ -1,0 +1,101 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/linkly-backend
+  FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/linkly-frontend
+
+jobs:
+  build-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache,mode=max
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            VITE_API_URL=https://techlinkassist.work.gd/api
+            VITE_BASE_URL=https://techlinkassist.work.gd
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via Native SSH
+        run: |
+          # 1. Private Key তৈরি করা
+          echo "${{ secrets.VPS_SSH_KEY }}" > private_key
+          chmod 600 private_key
+
+          # 2. সার্ভারে SSH কানেক্ট করে স্ক্রিপ্ট রান করা
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "bash -s" << 'EOF'
+            set -e
+            cd /home/deploy/apps/linkly
+
+            # 3. env ফাইল আপডেট করা
+            printf '%s' '${{ secrets.MAIN_ENV }}' > .env
+            printf '%s' '${{ secrets.BACKEND_ENV }}' > backend.env
+            chmod 600 .env backend.env
+
+            # 4. নতুন ইমেজ ট্যাগ আপডেট করা
+            sed -i '/^TAG=/d' .env
+            echo "TAG=${{ github.sha }}" >> .env
+
+            # 5. নতুন ইমেজ পুল করে কন্টেইনার রিস্টার্ট করা
+            docker compose pull backend frontend
+            docker compose up -d --remove-orphans backend frontend
+
+            # 6. হেলথ চেক (যদি ফেইল করে তবে ডিপ্লয় ফেইল হবে)
+            sleep 10
+            curl -fs http://localhost:3000/health || {
+              echo "❌ Backend unhealthy"
+              exit 1
+            }
+            curl -fs http://localhost:8080 > /dev/null || {
+              echo "❌ Frontend unhealthy"
+              exit 1
+            }
+
+            # 7. পুরনো ইমেজ ক্লিনআপ
+            docker image prune -f
+            
+            echo "✅ Deploy successful: ${{ github.sha }}"
+          EOF
+
+          # 8. Private Key ডিলিট করা (নিরাপত্তার জন্য)
+          rm private_key
