@@ -13,6 +13,7 @@ services:
     restart: unless-stopped
     networks: [appnet]
 
+
   frontend:
     build:
       context: ./frontend
