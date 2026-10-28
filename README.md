@@ -82,10 +82,13 @@ docker compose exec -T db psql -U linkly -d linkly < backend/migrations/001_init
 
 ## 📸 Screenshots
 
-| App | Monitoring | CI/CD |
-|-----|-----------|-------|
-| ![App](./docs/screenshots/app.png) | ![Uptime](./docs/screenshots/monitoring.png) | ![CI](./docs/screenshots/cicd.png) |
+| Application UI | Monitoring (Grafana) |
+|:---:|:---:|
+| ![App](./docs/screenshots/app.png) | ![Grafana](./docs/screenshots/grafana.png) |
 
+| CI/CD Pipeline | Uptime (Uptime Kuma) |
+|:---:|:---:|
+| ![CI](./docs/screenshots/cicd.png) | ![Uptime](./docs/screenshots/monitoring.png) |
 ---
 
 ## 📡 API Overview
