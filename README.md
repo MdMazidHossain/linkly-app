@@ -107,26 +107,6 @@ docker compose exec -T db psql -U linkly -d linkly < backend/migrations/001_init
 
 ---
 
-## 🎯 Key Learnings
-
-1. **"Works locally" ≠ "Works in production"** — env vars, DNS, SSL, permissions all matter.
-2. **Every secret belongs in GitHub Secrets** — never in code.
-3. **Health checks prevent 3 AM wakeups** — auto-rollback on failure.
-4. **The 7-phase pattern is universal** — works for any language or cloud.
-
----
-
-## 🗺️ Roadmap
-
-- [x] Multi-stage Docker builds
-- [x] VPS hardening + CI/CD
-- [x] SSL + Nginx reverse proxy
-- [x] Automated backups + monitoring
-- [ ] Multi-environment (dev/staging/prod)
-- [ ] Terraform Infrastructure as Code
-- [ ] Kubernetes migration
-
----
 
 ## 👨‍💻 Author
 
