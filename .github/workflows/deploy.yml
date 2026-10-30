@@ -5,12 +5,58 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/linkly-backend
+  FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/linkly-frontend
+
 jobs:
-  deploy:
-    name: Deploy to VPS
+  build-push:
+    name: Build & Push Images
     runs-on: ubuntu-latest
     steps:
-      - name: SSH Deploy to VPS
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache,mode=max
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            VITE_API_URL=https://techlinkassist.work.gd/api
+            VITE_BASE_URL=https://techlinkassist.work.gd
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -19,30 +65,31 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             set -e
-            # প্রজেক্ট ডিরেক্টরিতে যাও
-            cd /home/deploy/apps/linkly-app
-            
-            # গিটহাব থেকে নতুন কোড টেনে আনো
-            git pull origin main
-            
-            # নতুন কোড থেকে ইমেজ বিল্ড করে রান করো
-            docker compose up -d --build --remove-orphans
-            
-            # হেলথ চেক
-            echo "⏳ Waiting for services to be healthy..."
+            cd /home/deploy/apps/linkly
+
+            # Refresh env files
+            printf '%s' '${{ secrets.MAIN_ENV }}' > .env
+            printf '%s' '${{ secrets.BACKEND_ENV }}' > backend.env
+            chmod 600 .env backend.env
+
+            # Update TAG to current commit
+            sed -i '/^TAG=/d' .env
+            echo "TAG=${{ github.sha }}" >> .env
+
+            # Pull and restart
+            docker compose pull backend frontend
+            docker compose up -d --remove-orphans backend frontend
+
+            # Health checks
             sleep 10
-            
-            if ! curl -fs http://localhost:3000/health > /dev/null; then
+            curl -fs http://localhost:3000/health || {
               echo "❌ Backend unhealthy"
               exit 1
-            fi
-            
-            if ! curl -fs http://localhost:8080 > /dev/null; then
+            }
+            curl -fs http://localhost:8080 > /dev/null || {
               echo "❌ Frontend unhealthy"
               exit 1
-            fi
-            
-            # অপ্রয়োজনীয় ইমেজ ডিলিট করো
+            }
+
             docker image prune -f
-            
             echo "✅ Deploy successful: ${{ github.sha }}"
